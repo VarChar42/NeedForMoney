@@ -30,10 +30,11 @@ uintptr_t FindPointer(HANDLE hProc, uintptr_t basePtr, std::vector<unsigned int>
 	{
 		uintptr_t newPtr;
 		ReadProcessMemory(hProc, (BYTE*)currentPtr, &newPtr, sizeof(newPtr), nullptr);
+		newPtr += offsets[i];
 
 		std::cout << "Tracing pointers ... 0x" << std::hex << currentPtr << " -> 0x" << newPtr << std::endl;
 
-		currentPtr = newPtr + offsets[i];
+		currentPtr = newPtr;
 	}
 
 	return currentPtr;
@@ -65,11 +66,18 @@ HANDLE OpenProcessByName(const wchar_t* name, DWORD mode) {
 int main()
 {
 	HANDLE hProc = OpenProcessByName(L"NeedForSpeedHeat.exe", PROCESS_ALL_ACCESS);
+
+	if (hProc == NULL)
+	{
+		std::cout << "Could not find process handle" << std::endl;
+		return 0;
+	}
+
 	uintptr_t basePtr = GetBaseAddress(hProc);
 
 	std::cout << "Base address: " << std::hex << basePtr << std::endl;
 
-	std::vector<unsigned int> offsets = { 0x70, 0x38, 0x20, 0x38 };
+	std::vector<unsigned int> offsets = { 0x70, 0x38, 0x18, 0x38 };
 
 	uintptr_t targetPtr = FindPointer(hProc, basePtr + 0x049DF7E0, offsets);
 
@@ -77,12 +85,22 @@ int main()
 
 	ReadProcessMemory(hProc, (BYTE*)targetPtr, &value, sizeof(value), nullptr);
 
+
 	std::cout << "Current money: " << std::dec << value << std::endl;
 	std::cout << "New money amount: ";
 
 	std::cin >> value;
 
+	if (value == 0)
+	{
+		std::cout << "Aborting" << std::endl;
+		return 0;
+	}
+
 	std::cout << "Writing 0x" << std::hex << value << " -> 0x" << targetPtr << std::endl;
 
 	WriteProcessMemory(hProc, (BYTE*)targetPtr, &value, sizeof(value), nullptr);
+
+
+	return 0;
 }
